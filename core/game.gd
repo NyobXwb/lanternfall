@@ -111,7 +111,7 @@ func _populate(frng: RandomNumberGenerator, m: Dictionary) -> void:
 		var f: Array = Defs.MONSTERS[id].floors
 		if floor_num >= f[0] and floor_num <= f[1]:
 			pool.append(id)
-	var count := 4 + floor_num / 2 + frng.randi_range(0, 3)
+	var count := 4 + floor_num * 2 / 3 + frng.randi_range(0, 3)
 	if floor_num == Defs.LAST_FLOOR:
 		count = 5
 		var boss_room: Rect2i = rooms[m.stairs_room]
@@ -498,10 +498,10 @@ func _ability(target: Vector2i) -> bool:
 			if not visible.has(m.pos) or cheb(m.pos, player.pos) > 5 or not line_of_sight(player.pos, m.pos):
 				return false
 			player.cooldown = Defs.CLASSES[class_id].cooldown
-			oil = maxi(0, oil - 10)
+			oil = maxi(0, oil - 5)
 			msg("A firebolt strikes the %s!" % m.name)
 			m.aware = true
-			_damage_monster(m, 6 + level / 2)
+			_damage_monster(m, 7 + level / 2)
 			return true
 	return false
 
@@ -513,11 +513,11 @@ func hit_chance(acc: int, eva: int) -> int:
 func _player_attack(m: Actor, _bonus: int) -> void:
 	var wd: Dictionary = weapon_stats()
 	var dmg := rng.randi_range(wd.dmg[0], wd.dmg[1]) + player.str_bonus
-	if class_id == "cutpurse" and not m.aware:
+	if class_id == "cutpurse" and (not m.aware or m.stun > 0):
 		dmg *= 3
 		msg("You backstab the %s!" % m.name)
 		m.aware = true
-		_damage_monster(m, maxi(1, dmg - m.armor))
+		_damage_monster(m, maxi(1, dmg - _soak(m.armor)))
 		return
 	m.aware = true
 	if m.ai == "mimic":
@@ -525,7 +525,11 @@ func _player_attack(m: Actor, _bonus: int) -> void:
 	if rng.randi_range(1, 100) > hit_chance(total_acc(), m.eva):
 		msg("You miss the %s." % m.name)
 		return
-	_damage_monster(m, maxi(1, dmg - m.armor))
+	_damage_monster(m, maxi(1, dmg - _soak(m.armor)))
+
+# Armor soaks a random 0..armor points, so heavy armor helps but never makes you immune.
+func _soak(armor_value: int) -> int:
+	return rng.randi_range(0, armor_value) if armor_value > 0 else 0
 
 func _damage_monster(m: Actor, amount: int) -> void:
 	m.hp -= amount
@@ -589,7 +593,7 @@ func _monster_attack(m: Actor) -> void:
 	if rng.randi_range(1, 100) > hit_chance(m.acc, total_eva()):
 		msg("The %s misses." % m.name)
 		return
-	var dmg := maxi(1, rng.randi_range(m.dmg[0], m.dmg[1]) - total_armor())
+	var dmg := maxi(1, rng.randi_range(m.dmg[0], m.dmg[1]) - _soak(total_armor()))
 	msg("The %s hits you (%d)." % [m.name, dmg])
 	_damage_player(dmg, m.name)
 	if m.ai == "drain":
@@ -681,6 +685,10 @@ func _monster_turn(m: Actor) -> void:
 					_monster_attack(m)
 				return
 			if d <= 5 and line_of_sight(m.pos, player.pos):
+				m.timer = 1 - m.timer
+				if m.timer == 0:
+					msg("The %s nocks an arrow." % m.name)
+					return
 				msg("The %s shoots an arrow." % m.name)
 				_monster_attack(m)
 				return
