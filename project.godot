@@ -3,6 +3,8 @@ config_version=5
 
 [application]
 
+run/main_scene="res://ui/main.tscn"
+
 config/name="Lanternfall"
 config/description="A turn-based dungeon roguelike where your lantern oil is the clock."
 config/features=PackedStringArray("4.5", "GL Compatibility")

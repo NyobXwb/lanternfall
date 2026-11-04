@@ -20,7 +20,7 @@ const CLASSES := {
 		"weapon": "iron_blade", "kit": ["potion_heal"], "ability": "bash", "cooldown": 8,
 	},
 	"cutpurse": {
-		"name": "Cutpurse", "hp": 24, "str": 0, "acc": 2, "eva": 3, "armor": 0,
+		"name": "Cutpurse", "hp": 26, "str": 0, "acc": 2, "eva": 3, "armor": 0,
 		"weapon": "daggers", "kit": ["smoke_bomb", "smoke_bomb"], "ability": "backstab", "cooldown": 0,
 	},
 	"adept": {
@@ -35,7 +35,7 @@ const MONSTERS := {
 	"bat":      {"name": "bat", "hp": 4, "dmg": [1, 2], "acc": 0, "eva": 3, "armor": 0, "xp": 1, "floors": [1, 3], "ai": "erratic"},
 	"slime":    {"name": "slime", "hp": 8, "dmg": [1, 3], "acc": -1, "eva": 0, "armor": 0, "xp": 2, "floors": [1, 3], "ai": "split"},
 	"goblin":   {"name": "goblin", "hp": 9, "dmg": [2, 3], "acc": 1, "eva": 1, "armor": 0, "xp": 3, "floors": [3, 6], "ai": "rush", "pack": 3},
-	"archer":   {"name": "skeleton archer", "hp": 8, "dmg": [2, 4], "acc": 1, "eva": 1, "armor": 1, "xp": 4, "floors": [3, 6], "ai": "ranged"},
+	"archer":   {"name": "skeleton archer", "hp": 7, "dmg": [2, 4], "acc": 0, "eva": 1, "armor": 1, "xp": 4, "floors": [3, 6], "ai": "ranged"},
 	"spider":   {"name": "spider", "hp": 10, "dmg": [2, 4], "acc": 1, "eva": 2, "armor": 0, "xp": 4, "floors": [3, 6], "ai": "web"},
 	"orc":      {"name": "orc brute", "hp": 18, "dmg": [3, 6], "acc": 1, "eva": 0, "armor": 1, "xp": 7, "floors": [5, 8], "ai": "rush"},
 	"wraith":   {"name": "wraith", "hp": 14, "dmg": [2, 4], "acc": 2, "eva": 3, "armor": 0, "xp": 7, "floors": [5, 8], "ai": "drain"},

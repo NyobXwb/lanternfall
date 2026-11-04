@@ -61,6 +61,7 @@ func _init(p_seed: int = 1, p_class: String = "guard") -> void:
 	weapon = c.weapon
 	for it in c.kit:
 		inventory.append(it)
+		identified[it] = true   # you know what you packed
 	_new_floor()
 
 # ---------------------------------------------------------------- setup
@@ -177,9 +178,11 @@ func spawn_monster(id: String, p: Vector2i) -> Actor:
 	a.kind = id
 	a.name = d.name
 	a.pos = p
-	a.max_hp = d.hp
-	a.hp = d.hp
-	a.acc = d.acc
+	# Deeper floors make every monster a little tougher and sharper.
+	var depth := floor_num - 1 if d.ai != "boss" else 0
+	a.max_hp = d.hp + d.hp * depth / 30
+	a.hp = a.max_hp
+	a.acc = d.acc + depth / 5
 	a.eva = d.eva
 	a.armor = d.armor
 	a.dmg = d.dmg
@@ -681,7 +684,8 @@ func _monster_turn(m: Actor) -> void:
 				return
 		"ranged":
 			if d == 1:
-				if not _step_away(m):
+				# Archers try to back off, but only when their bow is still loaded.
+				if m.timer == 0 or not _step_away(m):
 					_monster_attack(m)
 				return
 			if d <= 5 and line_of_sight(m.pos, player.pos):
@@ -760,3 +764,92 @@ func _step_away(m: Actor) -> bool:
 		return false
 	m.pos = best
 	return true
+
+# ---------------------------------------------------------------- save / load
+
+const ACTOR_FIELDS := ["kind", "name", "hp", "max_hp", "str_bonus", "acc", "eva", "armor", "dmg", "ai",
+	"xp", "is_player", "aware", "stun", "root", "cooldown", "gen", "timer", "phase", "summons"]
+
+func _actor_to_dict(a: Actor) -> Dictionary:
+	var d := {"pos": [a.pos.x, a.pos.y]}
+	for f in ACTOR_FIELDS:
+		d[f] = a.get(f)
+	return d
+
+func _actor_from_dict(d: Dictionary) -> Actor:
+	var a := Actor.new()
+	for f in ACTOR_FIELDS:
+		var v = d[f]
+		if v is float:
+			v = int(v)
+		if f == "dmg":
+			v = [int(v[0]), int(v[1])]
+		a.set(f, v)
+	a.pos = Vector2i(int(d.pos[0]), int(d.pos[1]))
+	return a
+
+func to_dict() -> Dictionary:
+	var items := []
+	for p in floor_items:
+		items.append([p.x, p.y, floor_items[p]])
+	var mons := []
+	for m in monsters:
+		mons.append(_actor_to_dict(m))
+	var rms := []
+	for r in rooms:
+		rms.append([r.position.x, r.position.y, r.size.x, r.size.y])
+	return {
+		"version": 1, "seed": seed_value, "class": class_id, "rng_state": str(rng.state),
+		"tiles": Marshalls.raw_to_base64(tiles), "seen": Marshalls.raw_to_base64(seen),
+		"rooms": rms, "stairs": [stairs.x, stairs.y], "floor": floor_num,
+		"player": _actor_to_dict(player), "monsters": mons, "items": items,
+		"inventory": inventory, "weapon": weapon, "body_armor": body_armor, "oil": oil,
+		"dark_counter": dark_counter, "turn": turn, "level": level, "blessings": blessings,
+		"pending": pending, "messages": messages.slice(-30), "identified": identified.keys(),
+		"stats": stats,
+	}
+
+static func from_dict(d: Dictionary):
+	var g = load("res://core/game.gd").new(int(d.seed), d["class"])
+	g.rng.state = int(d.rng_state)
+	g.tiles = Marshalls.base64_to_raw(d.tiles)
+	g.seen = Marshalls.base64_to_raw(d.seen)
+	g.rooms.clear()
+	for r in d.rooms:
+		g.rooms.append(Rect2i(int(r[0]), int(r[1]), int(r[2]), int(r[3])))
+	g.stairs = Vector2i(int(d.stairs[0]), int(d.stairs[1]))
+	g.floor_num = int(d.floor)
+	g.player = g._actor_from_dict(d.player)
+	g.monsters.clear()
+	for m in d.monsters:
+		g.monsters.append(g._actor_from_dict(m))
+	g.floor_items.clear()
+	for it in d.items:
+		var arr: Array = []
+		for id in it[2]:
+			arr.append(str(id))
+		g.floor_items[Vector2i(int(it[0]), int(it[1]))] = arr
+	g.inventory.clear()
+	for id in d.inventory:
+		g.inventory.append(str(id))
+	g.weapon = d.weapon
+	g.body_armor = d.body_armor
+	g.oil = int(d.oil)
+	g.dark_counter = int(d.dark_counter)
+	g.turn = int(d.turn)
+	g.level = int(d.level)
+	g.blessings.clear()
+	for b in d.blessings:
+		g.blessings.append(str(b))
+	g.pending = d.pending
+	g.messages.clear()
+	for s in d.messages:
+		g.messages.append(str(s))
+	g.identified.clear()
+	for id in d.identified:
+		g.identified[str(id)] = true
+	for k in d.stats:
+		g.stats[k] = int(d.stats[k])
+	g.state = "playing"
+	g._refresh()
+	return g
