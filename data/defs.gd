@@ -16,16 +16,16 @@ const INV_CAP := 16
 # Player classes. dmg = weapon damage range without a weapon item.
 const CLASSES := {
 	"guard": {
-		"name": "Warden's Guard", "hp": 24, "str": 1, "acc": 1, "eva": 0, "armor": 1,
-		"weapon": "iron_blade", "kit": ["potion_heal"], "ability": "bash", "cooldown": 8,
+		"name": "Warden's Guard", "hp": 22, "str": 1, "acc": 1, "eva": 0, "armor": 1,
+		"weapon": "iron_blade", "kit": ["potion_heal"], "ability": "bash", "cooldown": 10,
 	},
 	"cutpurse": {
 		"name": "Cutpurse", "hp": 26, "str": 0, "acc": 2, "eva": 3, "armor": 0,
 		"weapon": "daggers", "kit": ["smoke_bomb", "smoke_bomb"], "ability": "backstab", "cooldown": 0,
 	},
 	"adept": {
-		"name": "Ember Adept", "hp": 18, "str": 0, "acc": 0, "eva": 1, "armor": 0,
-		"weapon": "staff", "kit": ["scroll_fire", "scroll_fire", "scroll_fire"], "ability": "firebolt", "cooldown": 4,
+		"name": "Ember Adept", "hp": 20, "str": 0, "acc": 0, "eva": 1, "armor": 0,
+		"weapon": "staff", "kit": ["scroll_fire", "scroll_fire", "scroll_fire"], "ability": "firebolt", "cooldown": 3,
 	},
 }
 
