@@ -140,7 +140,11 @@ func _careful(g) -> Dictionary:
 	var targets: Array = []
 	var full: bool = g.inventory.size() >= Defs.INV_CAP
 	for pos in g.floor_items:
-		if g.is_seen(pos) and pos != p.pos and (not full or "oil" in g.floor_items[pos]):
+		var wanted := false
+		for id in g.floor_items[pos]:
+			if id == "oil" or (not full and not g._is_worse_gear(id)):
+				wanted = true
+		if g.is_seen(pos) and pos != p.pos and wanted:
 			targets.append(pos)
 	if g.tile(p.pos) == MapGen.STAIRS and _should_descend(g):
 		return {"type": "descend"}

@@ -309,6 +309,8 @@ func act(a: Dictionary) -> bool:
 			ok = true
 		"use":
 			ok = _use(a.index, a.get("target", Vector2i(-1, -1)))
+		"drop":
+			ok = _drop(a.index)
 		"ability":
 			ok = _ability(a.get("target", Vector2i(-1, -1)))
 		"descend":
@@ -345,6 +347,9 @@ func _on_enter(p: Vector2i) -> void:
 			if id == "oil":
 				oil = mini(Defs.OIL_MAX, oil + Defs.OIL_FLASK)
 				msg("You refill your lantern.")
+			elif _is_worse_gear(id):
+				left.append(id)
+				msg("You leave the %s; yours is better." % Defs.ITEMS[id].name)
 			elif inventory.size() < Defs.INV_CAP:
 				inventory.append(id)
 				msg("You pick up %s." % item_name(id))
@@ -362,6 +367,14 @@ func _on_enter(p: Vector2i) -> void:
 		msg("A shrine hums. Choose a blessing.")
 	if tile(p) == MapGen.STAIRS:
 		msg("Stairs lead down.")
+
+func _is_worse_gear(id: String) -> bool:
+	var d: Dictionary = Defs.ITEMS[id]
+	if d.kind == "weapon":
+		return d.get("tier", 0) <= Defs.ITEMS[weapon].get("tier", 0)
+	if d.kind == "armor":
+		return body_armor != "" and d.tier <= Defs.ITEMS[body_armor].tier
+	return false
 
 func _descend() -> bool:
 	if tile(player.pos) != MapGen.STAIRS:
@@ -472,6 +485,15 @@ func _use(i: int, target: Vector2i) -> bool:
 					m.stun = maxi(m.stun, 1)
 	if not was_known:
 		msg("(It was a %s.)" % d.name)
+	return true
+
+func _drop(i: int) -> bool:
+	if i < 0 or i >= inventory.size():
+		return false
+	var id: String = inventory[i]
+	inventory.remove_at(i)
+	add_floor_item(player.pos, id)
+	msg("You drop %s." % item_name(id))
 	return true
 
 func _teleport() -> void:

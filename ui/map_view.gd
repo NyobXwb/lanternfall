@@ -65,10 +65,11 @@ func _draw() -> void:
 				MapGen.STAIRS: spr = "stairs"
 				MapGen.SHRINE: spr = "shrine"
 				_: spr = "floor_alt" if (x * 7 + y * 13) % 5 == 0 else "floor"
-			draw_texture_rect_region(tex, dest, Sprites.region(spr), tint)
+			draw_texture_rect_region(tex, dest, Sprites.region(spr), tint * Sprites.tint(spr))
 			if game.floor_items.has(p):
 				var id: String = game.floor_items[p][-1]
-				draw_texture_rect_region(tex, dest, Sprites.region(Defs.ITEMS[id].kind), tint)
+				var ispr: String = Defs.ITEMS[id].kind
+				draw_texture_rect_region(tex, dest, Sprites.region(ispr), tint * Sprites.tint(ispr))
 	# Monsters (only in light).
 	for m in game.monsters:
 		if not m.alive() or not game.visible.has(m.pos):
@@ -76,8 +77,8 @@ func _draw() -> void:
 		var dest := Rect2(Vector2(m.pos - o) * CELL, Vector2(CELL, CELL))
 		var spr: String = m.kind
 		if m.ai == "mimic" and not m.aware:
-			spr = "weapon"
-		draw_texture_rect_region(tex, dest, Sprites.region(spr), _tint(m.pos, r))
+			spr = "chest"
+		draw_texture_rect_region(tex, dest, Sprites.region(spr), _tint(m.pos, r) * Sprites.tint(spr))
 		if m.hp < m.max_hp:
 			var frac: float = float(m.hp) / m.max_hp
 			draw_rect(Rect2(dest.position + Vector2(4, -4), Vector2(CELL - 8, 4)), Color(0.2, 0, 0))

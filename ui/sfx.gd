@@ -15,7 +15,15 @@ const SOUNDS := {
 	"level": [500.0, 1000.0, 0.30, "sine", 0.4],
 	"death": [220.0, 40.0, 0.9, "square", 0.4],
 	"win": [400.0, 1200.0, 0.8, "sine", 0.4],
+	"scroll": [600.0, 900.0, 0.08, "sine", 0.35],
 }
+const MUSIC := {"title": "res://assets/music/title.ogg", "descent": "res://assets/music/descent.ogg", "deep": "res://assets/music/deep.ogg"}
+const SETTINGS_PATH := "user://settings.json"
+
+var music_player: AudioStreamPlayer
+var current_track := ""
+var music_on := true
+var sfx_on := true
 
 var streams := {}
 var players: Array[AudioStreamPlayer] = []
@@ -27,11 +35,53 @@ func _ready() -> void:
 		streams[n] = load(path) if ResourceLoader.exists(path) else _synth(SOUNDS[n])
 	for i in 6:
 		var p := AudioStreamPlayer.new()
+		p.volume_db = -4.0
 		add_child(p)
 		players.append(p)
+	music_player = AudioStreamPlayer.new()
+	music_player.volume_db = -12.0
+	add_child(music_player)
+	if FileAccess.file_exists(SETTINGS_PATH):
+		var d = JSON.parse_string(FileAccess.get_file_as_string(SETTINGS_PATH))
+		if d is Dictionary:
+			music_on = d.get("music", true)
+			sfx_on = d.get("sfx", true)
+
+func save_settings() -> void:
+	var f := FileAccess.open(SETTINGS_PATH, FileAccess.WRITE)
+	if f:
+		f.store_string(JSON.stringify({"music": music_on, "sfx": sfx_on}))
+
+func play_music(track: String) -> void:
+	if track == current_track and music_player.playing:
+		return
+	current_track = track
+	music_player.stop()
+	if not music_on or not MUSIC.has(track) or not ResourceLoader.exists(MUSIC[track]):
+		return
+	var st = load(MUSIC[track])
+	if st is AudioStreamOggVorbis:
+		st.loop = true
+	music_player.stream = st
+	music_player.play()
+
+func toggle_music() -> void:
+	music_on = not music_on
+	var t := current_track
+	current_track = ""
+	if music_on:
+		play_music(t)
+	else:
+		music_player.stop()
+		current_track = t
+	save_settings()
+
+func toggle_sfx() -> void:
+	sfx_on = not sfx_on
+	save_settings()
 
 func play(n: String) -> void:
-	if not streams.has(n):
+	if not sfx_on or not streams.has(n):
 		return
 	var p := players[next]
 	next = (next + 1) % players.size()

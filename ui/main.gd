@@ -153,6 +153,7 @@ func _centered_box() -> VBoxContainer:
 
 func show_title() -> void:
 	screen = "title"
+	sfx.play_music("title")
 	_clear()
 	_bg()
 	var box := _centered_box()
@@ -233,6 +234,7 @@ func _sprite_icon(sprite: String) -> Texture2D:
 	at.region = Sprites.region(sprite)
 	var img := at.get_image()
 	img.resize(48, 48, Image.INTERPOLATE_NEAREST)
+	_tint_image(img, Sprites.tint(sprite))
 	return ImageTexture.create_from_image(img)
 
 # ---------------------------------------------------------------- run
@@ -260,6 +262,7 @@ func _continue_run() -> void:
 func show_game() -> void:
 	screen = "game"
 	_clear()
+	stats_box = null
 	_bg()
 	travel_bot = Bot.new("careful", game.seed_value)
 	var root := HBoxContainer.new()
@@ -299,6 +302,7 @@ func show_game() -> void:
 func _refresh() -> void:
 	if screen != "game":
 		return
+	sfx.play_music("deep" if game.floor_num >= 7 else "descent")
 	map_view.queue_redraw()
 	_build_side()
 	var lines: Array = game.messages.slice(-40)
@@ -326,9 +330,40 @@ func _bar(label: String, value: int, max_value: int, color: Color) -> Control:
 	box.add_child(bar)
 	return box
 
+var stats_box: VBoxContainer
+var pack_box: VBoxContainer
+var _pack_sig := ""
+
 func _build_side() -> void:
-	for c in side.get_children():
-		c.queue_free()
+	if stats_box == null or not is_instance_valid(stats_box):
+		for c in side.get_children():
+			c.queue_free()
+		stats_box = VBoxContainer.new()
+		stats_box.add_theme_constant_override("separation", 6)
+		side.add_child(stats_box)
+		pack_box = VBoxContainer.new()
+		pack_box.add_theme_constant_override("separation", 4)
+		side.add_child(pack_box)
+		var help := _label("Move: arrows / WASD + QEZC / numpad\nSpace wait   Enter descend   F ability\nClick a tile to walk there   Esc save & quit\nM music   N sounds   F11 fullscreen   H help", 13, COL_DIM)
+		side.add_child(help)
+		_pack_sig = ""
+	for c in stats_box.get_children():
+		c.free()
+	var side_saved := side
+	side = stats_box
+	_build_stats()
+	side = side_saved
+	var sig := ",".join(game.inventory) + "|" + str(game.identified.size())
+	if sig != _pack_sig:
+		_pack_sig = sig
+		for c in pack_box.get_children():
+			c.free()
+		var side_saved2 := side
+		side = pack_box
+		_build_pack()
+		side = side_saved2
+
+func _build_stats() -> void:
 	var g = game
 	var cls: Dictionary = Defs.CLASSES[g.class_id]
 	side.add_child(_label("%s   Lv %d" % [cls.name, g.level], 20, COL_ACCENT))
@@ -350,7 +385,10 @@ func _build_side() -> void:
 	if not g.blessings.is_empty():
 		side.add_child(_label("Blessings: " + ", ".join(g.blessings), 14, Color(0.6, 0.8, 1)))
 	side.add_child(HSeparator.new())
-	side.add_child(_label("Pack (%d/%d) - click or press 1-9, 0" % [g.inventory.size(), Defs.INV_CAP], 14, COL_DIM))
+
+func _build_pack() -> void:
+	var g = game
+	side.add_child(_label("Pack %d/%d  (1-9, 0 or click; right-click drops)" % [g.inventory.size(), Defs.INV_CAP], 12, COL_DIM))
 	for i in g.inventory.size():
 		var id: String = g.inventory[i]
 		var key := str((i + 1) % 10) if i < 10 else " "
@@ -360,10 +398,26 @@ func _build_side() -> void:
 		b.focus_mode = Control.FOCUS_NONE
 		b.add_theme_font_size_override("font_size", 15)
 		b.icon = _sprite_icon_small(Defs.ITEMS[id].kind)
+		b.custom_minimum_size = Vector2(0, 30)
+		b.add_theme_constant_override("icon_max_width", 24)
+		for st in ["normal", "hover", "pressed"]:
+			var sb: StyleBoxFlat = theme.get_stylebox(st, "Button").duplicate()
+			sb.set_content_margin_all(3)
+			b.add_theme_stylebox_override(st, sb)
+		b.tooltip_text = "Left click: use.  Right click: drop."
+		b.gui_input.connect(func(ev):
+			if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_RIGHT:
+				_do({"type": "drop", "index": i}))
 		b.pressed.connect(func(): _use_item(i))
 		side.add_child(b)
 	side.add_child(HSeparator.new())
-	side.add_child(_label("Move: arrows / WASD + QEZC / numpad\nSpace wait   Enter descend   F ability\nClick a tile to walk there   Esc save & quit", 13, COL_DIM))
+
+func _tint_image(img: Image, c: Color) -> void:
+	if c == Color.WHITE:
+		return
+	for y in img.get_height():
+		for x in img.get_width():
+			img.set_pixel(x, y, img.get_pixel(x, y) * c)
 
 var _icon_cache := {}
 func _sprite_icon_small(sprite: String) -> Texture2D:
@@ -373,6 +427,7 @@ func _sprite_icon_small(sprite: String) -> Texture2D:
 		at.region = Sprites.region(sprite)
 		var img := at.get_image()
 		img.resize(32, 32, Image.INTERPOLATE_NEAREST)
+		_tint_image(img, Sprites.tint(sprite))
 		_icon_cache[sprite] = ImageTexture.create_from_image(img)
 	return _icon_cache[sprite]
 
@@ -412,7 +467,7 @@ func _use_item(i: int) -> void:
 			_refresh()
 			return
 		a["target"] = t.pos
-	sfx.play("item")
+	sfx.play("scroll" if Defs.ITEMS[id].kind == "scroll" else "item")
 	_do(a)
 
 func _nearest_target(min_d: int, max_d: int):
@@ -442,6 +497,12 @@ func _ability() -> void:
 	sfx.play("ability")
 	_do({"type": "ability", "target": t.pos})
 
+func _input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F11:
+		var fs := DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED if fs else DisplayServer.WINDOW_MODE_FULLSCREEN)
+		get_viewport().set_input_as_handled()
+
 func _unhandled_input(event: InputEvent) -> void:
 	if screen == "end" and event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		show_title()
@@ -454,7 +515,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	travel_path_target = Vector2i(-1, -1)
 	var k: int = event.keycode
-	if k == KEY_ESCAPE:
+	if k == KEY_M:
+		sfx.toggle_music()
+	elif k == KEY_N:
+		sfx.toggle_sfx()
+	elif k == KEY_ESCAPE:
 		Profile.write_save(game, daily_key)
 		show_title()
 	elif KEY_DIRS.has(k):
