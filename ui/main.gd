@@ -55,7 +55,9 @@ func _dev_capture() -> void:
 		var j := args.find("--" + name)
 		return args[j + 1] if j >= 0 and j + 1 < args.size() else dflt
 	var which: String = opt.call("screen", "game")
-	if which == "class":
+	if which == "help":
+		show_help("title")
+	elif which == "class":
 		show_class_select(false)
 	elif which == "game":
 		game = Game.new(int(opt.call("seed", "5")), opt.call("class", "guard"))
@@ -174,13 +176,62 @@ func show_title() -> void:
 	var prof := Profile.load_profile()
 	var done_today: bool = prof.daily.has(d[0])
 	box.add_child(_button("Daily run (%s)%s" % [d[0], " - done" if done_today else ""], func(): show_class_select(true), done_today))
+	box.add_child(_button("How to play", func(): show_help("title")))
 	box.add_child(_button("Records", show_records))
 	if OS.get_name() != "Web":
 		box.add_child(_button("Quit", func(): get_tree().quit()))
+	var credit := _label("Art and audio by Kenney (kenney.nl)", 13, COL_DIM)
+	credit.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(credit)
 	var stats := _label("Runs %d   Wins %d   Deepest floor %d" % [prof.runs, prof.wins, prof.best_floor], 16, COL_DIM)
 	stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(stats)
 	(first if first else nb).grab_focus.call_deferred()
+
+const HELP_TEXT := """[b]Goal[/b]  Reach floor 10 and defeat the Warden.
+
+[b]Your lantern[/b]  Oil burns one point every turn. More oil means a wider circle of light. At zero you can barely see and the dark wounds you. Refill with oil flasks and scrolls of light, and don't linger.
+
+[b]Fighting[/b]  Walk into a monster to attack it. Monsters notice you sooner when your lantern is bright. Each class has an ability on F.
+
+[b]Items[/b]  Walk over items to pick them up. Potions and scrolls are unknown until you try one. Weaker weapons and armor are left on the floor. Right-click an item to drop it.
+
+[b]Growing stronger[/b]  Kills give XP. Each level heals you fully and lets you pick a boost. Shrines on floors 3, 6 and 9 offer a blessing.
+
+[b]Death is final[/b]  Your run is saved when you quit, but when you die it's gone. Reach floor 4 and floor 7 to unlock new classes.
+
+[b]Keys[/b]  Arrows, WASD, QEZC or numpad to move and attack.  Space waits.  Enter takes stairs.  F uses your ability.  1-9 and 0 use items.  Click a tile to walk there.  M toggles music, N sounds, F11 fullscreen, Esc saves and quits."""
+
+var _help_return := "title"
+
+func show_help(back_to: String) -> void:
+	_help_return = back_to
+	if back_to == "game":
+		var box := _modal("How to play")
+		_add_help_text(box)
+		var b := _button("Back to the dungeon", func(): overlay.queue_free(); overlay = null)
+		box.add_child(b)
+		b.grab_focus.call_deferred()
+		return
+	screen = "help"
+	_clear()
+	_bg()
+	var box := _centered_box()
+	box.add_child(_label("How to play", 32, COL_ACCENT))
+	_add_help_text(box)
+	var back := _button("Back", show_title)
+	box.add_child(back)
+	back.grab_focus.call_deferred()
+
+func _add_help_text(box: Control) -> void:
+	var t := RichTextLabel.new()
+	t.bbcode_enabled = true
+	t.fit_content = true
+	t.custom_minimum_size = Vector2(760, 0)
+	t.add_theme_font_size_override("normal_font_size", 16)
+	t.add_theme_font_size_override("bold_font_size", 16)
+	t.text = HELP_TEXT
+	box.add_child(t)
 
 func show_records() -> void:
 	screen = "records"
@@ -298,6 +349,9 @@ func show_game() -> void:
 	scroll.add_child(side)
 	game.changed.connect(_refresh)
 	_refresh()
+	var prof := Profile.load_profile()
+	if prof.runs == 0 and game.turn == 0 and OS.get_cmdline_user_args().find("--shot") < 0:
+		show_help("game")
 
 func _refresh() -> void:
 	if screen != "game":
@@ -515,7 +569,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	travel_path_target = Vector2i(-1, -1)
 	var k: int = event.keycode
-	if k == KEY_M:
+	if k == KEY_H or k == KEY_F1:
+		show_help("game")
+	elif k == KEY_M:
 		sfx.toggle_music()
 	elif k == KEY_N:
 		sfx.toggle_sfx()
